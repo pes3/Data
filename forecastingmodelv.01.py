@@ -7,10 +7,6 @@ a = [30,21,29,31,40,48,53,47,37,39,31,29,17,9,20,24,27,35,41,38,
           27,31,27,26,21,13,21,18,33,35,40,36,22,24,21,20,17,14,17,19,
           26,29,40,31,20,24,18,26,17,9,17,21,28,32,46,33,23,28,22,27,
           18,8,17,21,31,34,44,38,31,30,26,32]
-df = pd.Series(a)
-df.plot()
-pyplot.show()
-df.plot()
 #un-commitng the above will show the training data against the triple function plot (last func)
 def initial_trend(series, slen):
     sum = 0.0
@@ -50,7 +46,19 @@ def triple_exponential_smoothing(series, slen, alpha, beta, gamma, n_preds):
             trend = beta * (smooth-last_smooth) + (1-beta)*trend
             seasonals[i%slen] = gamma*(val-smooth) + (1-gamma)*seasonals[i%slen]
             result.append(smooth+trend+seasonals[i%slen])
-    forc = pd.Series(result)
-    forc.plot()
-    pyplot.show()
+
     return result
+# This is where you can add more plots!
+pd.Series([1,2,3,4,5,6]).plot() # useless, plot to show how to add new
+
+# Sets up smoothed data
+smoothed = triple_exponential_smoothing(a, 12, .716, .029, .993, 12)
+forc = pd.Series(smoothed)
+forc.plot()
+
+# Sets up original data
+df = pd.Series(a)
+df.plot(marker='o')
+
+
+pyplot.show() # This displays the plot

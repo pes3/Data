@@ -7,10 +7,10 @@ a = [30,21,29,31,40,48,53,47,37,39,31,29,17,9,20,24,27,35,41,38,
           27,31,27,26,21,13,21,18,33,35,40,36,22,24,21,20,17,14,17,19,
           26,29,40,31,20,24,18,26,17,9,17,21,28,32,46,33,23,28,22,27,
           18,8,17,21,31,34,44,38,31,30,26,32]
-df = pd.Series(a)
-df.plot()
-pyplot.show()
-df.plot()
+#df = pd.Series(a)
+#df.plot()
+#pyplot.show()
+#df.plot()
 #un-commitng the above will show the training data against the triple function plot (last func)
 def initial_trend(series, slen):
     sum = 0.0
@@ -32,7 +32,10 @@ def initial_seasonal_components(series, slen):
         seasonals[i] = sum_of_vals_over_avg/n_seasons
     return seasonals
     y = seasonals
-def triple_exponential_smoothing(series, slen, alpha, beta, gamma, n_preds):
+    
+def triple_exponential_smoothing(series: [int], slen: int, alpha: float, beta: float, gamma: float, n_preds: int) -> [int]:
+    """Given a series, series length, a, b, g, and number of preds,
+    return a series of...smoothed numbers."""
     result = []
     seasonals = initial_seasonal_components(series, slen)
     for i in range(len(series)+n_preds):
@@ -50,7 +53,20 @@ def triple_exponential_smoothing(series, slen, alpha, beta, gamma, n_preds):
             trend = beta * (smooth-last_smooth) + (1-beta)*trend
             seasonals[i%slen] = gamma*(val-smooth) + (1-gamma)*seasonals[i%slen]
             result.append(smooth+trend+seasonals[i%slen])
-    forc = pd.Series(result)
-    forc.plot()
-    pyplot.show()
+    # Took out pd.Series and pyplot.show()
     return result
+
+
+my_list = triple_exponential_smoothing(a, 12, .716, .029, .993, 12)
+
+# Data
+df = pd.DataFrame({
+  'x': range(0, len(my_list)), # bottom series, 0,1,2...end
+  'y1': my_list, # Smoothed series
+  'y2': a+([0]*12), # Original series
+})
+
+pyplot.plot('x', 'y1', data=df, marker='o', markerfacecolor='blue', markersize=12, color='skyblue', linewidth=4)
+pyplot.plot('x', 'y2', data=df, marker='', color='olive', linewidth=2)
+pyplot.legend()
+pyplot.show()
