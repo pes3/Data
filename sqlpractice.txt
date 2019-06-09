@@ -1,0 +1,6 @@
+/* column: id table: movie, actor */
+/*SELECT movie.id, actor.name, actor.id  FROM movie
+Right JOIN actor On movie.id = actor.id
+where name = 'Glenn Close'*/
+Select id from actor
+where name  = 'Glenn Close'
