@@ -10,7 +10,7 @@ class AddNumbersTest(TestCase):
         #not needed for this script because connetion is already done
         #(cont..) placed for a reminder
     def test_row_count(self):#making sure inerting rows does what it should
-        x = count_rows()
+        x = count_rows() #see how many rows are currenlty there
         insert_table('add','new','values')
         y = count_rows() # now count rows again after adding
         self.assertEquals(x,(y - 1))
