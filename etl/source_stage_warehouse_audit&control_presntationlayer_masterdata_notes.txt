@@ -1,0 +1,102 @@
+::Source Types::
+
+-sourcing from database system: use native driver to connect, odbc, read/interact w/ data via normal ssms. 
+
+-typically comma seperated or delimited. dont typically classify xml/json typically unstructured , they are nested in nature. As well excel is around, easy for business users. 
+
+-Api's around datawarehouse world.
+
+-source from ftp server  
+
+-plugins for ssis 
+::Stage::
+Stage Enviroment: helps avoid load lag, avoid issues with databse and etl not cooperation, prevents ipmpact of business. It is modeled after aplication we are to ingest, we lift it into a stage enviroment , there is no transformation it is simply loaded. From the stage enviroment we have the luxary of loading warehouse, without application/user fighting for resources. 
+How are we going to purge after stage: Are we gonna delete after load or indicate on the records that we processed them and then have a batch job later to come clean them up. work with IT to make sure disc space availability 
+
+
+-typicaly timestampe when record hits stage, create delta indicator between application and stage env. Need a seperate delta log from stage env. to warehouse
+
+-data getting into stage: 1)applicaiton database allows syncing/mirror you can leverage that. 2)or you can ship transaction logs, or backup restores into staging env. 3) or write a simple etl to lift data into stage env. 
+
+Journaling Stage:
+-Preventing data loss from updates in the data. Does require source database to have sync/mirror or use third party replication technology. 
+-When setting up stage env, create a table for every table. Add boolean type filed (processed field), if capturing errors have it single character (y for processed, n for not processed, e for exception)depends if you build error/retry into process
+-input date fields, maintain date fields where record was written, instead of replaying transactions we hook into stage , env. 
+- if application has an insert  there will be an insert into the stage, 
+
+- build in a primary key that is a sequence number, indicator flag if it was an insert update or delete, so we can replay transaction into application if we need to. 
+
+-dealing with throughput/ volume, updates/delete cause more resoures that insert -- thus journaly stage everything is an insert ... delays until etl from catpure .. justification for journaling stage
+
+::Data Warehouse Notes::
+->Dimension Table, Fact Table, Lookup Table are common tables to have in data warehouse
+
+Dimension Table:
+
+-Single subject area, customer or state
+They can have heiarchy (Country, State, City, Zip Code-- example of location heiarcy to look at location of several layers of granularity). Arithetics/calculations are not in tpically in demension tables. 
+
+- Can have child/parent relationships if needed. For instance , there could be a dimesnion of cities/states linked via foreign keys, while keeping heiarchy
+
+Fact Table:
+
+Used for general ledger, transaction, typically point in time, heavy on dates, we can conduct math. Fact's will have the numbers to aid reports and Dimension table would have columns and filtering
+
+Bridging(lookup) Tables:
+
+-1 to many, many to many relation. 
+-maintain foreign keys
+
+-Ex - Dimension is School , then we have a class and teachers and students. The glue between this, is the bridging table
+
+::Audit and Control::
+
+- simple audit: run a select to know how many rows, then after the stage, compare the counts to see they match and they same thing happens between this and datawarehouse and presentation layer
+
+-> "Control" aspect look at if it did not happen and why. Know what failed, where and why 
+ex: failed data quality check, have a control in place..possibly re-stage or wait for manual compliant , or have a fix to make to complaiant (auto), 
+
+-> "Timing" time rows from db ->stage->warehouse
+A a measured notification 
+
+::Presentation Layer::
+
+Bringing a subset of of data to support further presentation (big data) or user presentation
+
+-Seperation of computer power to avoid user and end work load
+
+-Row level sercurity and object security 
+
+-when creating a datawarehouse for users, you can create a mirror or failover (pending technology) let the users hit that and save primary for processing work
+
+-row level security gets in the way of etl, use it for presentation level data
+
+- Users have different needs, different volume and sets. You do not want to overwhelm reporting tool or take up to many resources
+ex: some only need current year, others need last year, so you can put those in seperate places, 
+
+-Lets say business objets, use star or snowflake schema for reporting tool
+-Lets tabluea , use large flat tables, that capture large sets datas / dependencies so you have less tables to join
+
+- if presentation has tables, then views are created .. creating an abstraction layer to user. 
+
+:: Master Data::
+
+-> Business objects agreed upon across the enterprise
+-authoritive recors, records with authority to represent something
+- Customers - master list of customers, each row is a customer lets say, could contain historical versions of them but usually just key relationships to get to the recors
+-overall it asserts authority on subject matter it represents
+-Master Data, decided but governance comittie
+
+-There are products you can get to help maintain master data
+-MDM - master data management, some folk this is their fulltime job
+
+- the goal is to process, governeance, tool and use sets of master data for an entity, methodology of linking, handling de-duplication, handles rules processes around incorrect or invalid. Master Data can be small or large, pending use case/re	quirements
+
+- Smaller warehouses have master data but one may not even realize it 
+::::::
+Ex: CRM Database: 
+-has customer records
+-> create a sales tunnel via webpage (ie Internal Sales Portal)
+-- has customer recors, orders , products shipments
+-the single systyem customer records in the CRM database, this would become Master Data when mirrored to Internal Sales Portal. 
+--> Online Customers , allowing them to register into sales portal. This creates two sets of customer records ( these are created organic). Now CRM loses Master Data level, because of online customers. So via the Online Customers , new customer records are being input into Interal Sales Portal. Thus the Internal Sales Portal could become the Master Data.
