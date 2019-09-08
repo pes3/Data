@@ -1,0 +1,10 @@
+::Modeling::"Dimenstions + Facts + Bridge Table"
+-> translating requriments and properties of sources application into database structures for your datawharehouse
+ex:
+-Let's use worldwideordersDB
+-keep audit&control table, consider other properties and tables we want to look at.. let's say buying groups
+- buying groups: primary key, name, tie to people table,.. temportal table
+-let's think what other tables does this table relate to. Do this via looking at keys. See if any keys go to another table. 
+-Look at customers table, see that the column 'buyinggroupid', see where that relates
+- buying group is attribute of customers
+-customers has foreign key, to join buying group

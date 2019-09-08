@@ -1,0 +1,372 @@
+though process working through a new DB
+'''
+select * from Sales.BuyingGroups
+'''
+let's figure out what other table this reltaes to - 
+-Looking at keys that go to other tables, typically keys should/will be named logically.(primar key pointing left dark, foreign key pointing right white, unique key point up dark for this Sales.BuyingGroups Table)
+->when you look at customers table you find 'buyingroupID', so it is an attribute of customers.
+- if we look at keys in customes table it has the forgeing key to buyinggroup. So buyinggroup is describing this. 
+
+::CitiesTable::
+If we were to bring this in, make a dimension of cities and states, linking cities to states to create hiearchy and provide state and city level reporting in presentation level.
+
+- We can see in customer table there is a delivery city and postal city.
+- Order table does not have a city table
+- The city is only going to relate to the customer
+
+:Customer Catagories Table:
+lets take a simple look at this table
+'''
+select * from [Sales].CustomerCategories
+'''
+-> we see it has more descpritive attributes of customer that we are going to want to bring in
+-customers table has customercatagoriesID as a foreign key. 
+
+::Customer Table::
+
+- we plan to drop Geography(in this case deliv. location) and Long Text fields for data wharehousing as this is considered by some to be not best practice to keep in. 
+-there is a delivery method, that we want to bring in (once we saw detail) to 
+
+::People Table::
+-People used on customer level and audit trail level
+- let's do a little different, it is a temporal table (ie it has historic versions of people) we would like to maintain the history of the person as its changed throughout system.
+-Customers table has a PrimaryContactPersonID & AltnernateContactPersonID. If we just went with the FK of person. Let's look at the AlternateContactPersonID FK, if we pulled this over and we joined here, I wouldnt know what version of the person it's actually talking about (it would make an assumption the person moves around of changes some deomgraphic info about them ).
+-->"Slowly Changing Dimesnion" So we are going to maintain two differnt keys on that table -- the Primary Key in the source system which would = PersonID - which will be consistent throughout all the versions of that person. Then maintain a seperate key - "a point in time key".
+-Currently we have to reference dates to see what version of the person, on a go forward basis if the person changes we can record that and maintain person history of time. We will build that as a 'slowly changing dimesnsion"
+
+
+
+Modelig Process:
+1)Change to Master DB, get out of the way and cause no harm
+'
+USE [Master]
+GO
+'
+2) Create a DB 
+'
+CREATE DATABASE[demoDB]
+GO
+'
+
+3) Navigate to newly created demoDB
+use [demoDB]
+GO
+
+4)We need to build a slowly changing dimension on People , we need to maintain several keys. Source database will give us PersonID, the second key I need to create. If it was a normal dimension , we could use an auto-incrementing identity column but since I need to control when a new ID is issued, so I can maintain histoircal records I will use a "sequence" which is a programatic function of sql server. Tell it what data type, where you want to start and what is the min/max value. 
+
+'
+Create SEQUENCE [dbo].[SQ_Person]
+AS [bigint]
+START WITH 1
+INCREMENT BY 1
+MINVALUE 1
+MAXVALUE 9223372036854775807
+CACHE
+GO
+
+5) Model Supporting Tables. We need to create the DID, wich are the DW ID's. The Group Name, which matches where values to be stored, and the Source ID where we maintain primary key from application system, also a created and last updated date. 
+
+'
+CREATE TABLE [dbo].[BUYING_GROUP_D](
+[BUYING_GROUP_D_ID] [int] IDENTITY(1,1) NOT NULL, 
+[GROUP_NAME] [nvarchar](50) NOT NULL,
+[GROUP_SRC_ID] [int] NOT NULL,
+[CREATED_DATE] [datetime] NOT NULL,
+[LAST_UPDATE_DATE] [datetime] NOT NULL,
+CONSTRAINT [PK_BUYING_GROUP_D] PRIMARY KEY CLUSTERED 
+(
+	[BUYING_GROUP_D_ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+'
+6)Lets make default values for 'Created_Date' and 'Last_Updated' Date via constraints. We will update that field to the current datetime when row is inserted in. 
+'
+ALTER TABlE [dbo].[BUYING_GROUP_D] ADD CONSTRAINT [DF_BUYING_GROUP_D_CREATED_DATE] DEFAULT (getdate()) FOR [CREATED_DATE]
+GO
+ALTER TABLE [dbo].[BUYING_GROUP_D] ADD CONSTRAINT [DF_BUYING_GROUP_D_LAST_UPDATE_DATE] DEFAULT (getdate()) FOR [LAST_UPDATE_DATE]
+GO
+'
+
+7) Now let's model the Cities table. Wer going to have the D ID - the name, the State ID whilst saving value of DW ID. Primary Key from db for City and our two dates. 
+'
+CREATE TABLE [dbo].[CITY_D](
+[CITY_D_ID] [int] IDENTITY (1,1) NOT NULL, 
+[CITY_NAME] [nvarchar] (50) NOT NULL,
+[STATE_D_ID] [int] NOT NULL,
+[CREATED_DATE] [datetime] NOT NULL,
+[LAST_UPDATE_DATE] [datetime] NOT NULL,
+CONSTRAINT [PK_CITY_D] PRIMARY KEY CLUSTERED
+(
+	[CITY_D_ID] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY= OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+	ON [PRIMARY]
+)	ON [PRIMARY]
+	GO
+'
+8) As we did before , add constraints for the date fields 
+'
+ALTER TABLE [DBO].[CITY_D] ADD CONSTRAINT [DF_CITY_D_CREATED_DATE] DEFAULT (getdate()) FOR [CREATED_DATE]
+GO
+ALTER TABLE [dbo].[CITY_D] ADD CONSTRAINT[DF_CITY_D_LAST_UPDATE_DATE] DEFAULT (getdate()) FOR [LAST_UPDATE_DATE]
+GO
+'
+
+**Side note** Notice how columns on our tables were essentially renamed to be closer to business termonology ... and similar to source application... this is failry common. 
+
+9) Let's create Cusotmer Category table, and add date constraints 
+
+Create Table [dbo].[CUSTOMER_CATEGORY_D](
+[CUSTOMER_CATEGORY_D_ID] [int] IDENTITY(1,1) NOT NULL,
+[CATEGORY_NAME] [nvarchar] (50) NOT NULL,
+[CATEGORY_SRC_ID] [int] NOT NULL,
+[CREATED_DATE] [datetime] NOT NULL,
+CONSTRAINT [PK_CUSTOMER_CATEGORY_D] PRIMARY KEY CLUSTERED
+(
+	[CUSTOMER_CATEGORY_D_ID] ASC
+	) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+10) Now let's create the customer table. See notes below that indicate where we are making this table temporal (ie it allows SQL Server toautomatically keep history of the data in the table.) As well notes on History schema below, as it is not input programatically. A temporal table will be indicated by a different icon in the mgmt studio tree and it will say (system-version) and it will create an archived table under 'history'. History table maintains same column structure. We will get into lodaing temporal table when building loarders & more general info to come on temporal tables. 
+'
+CREATE TABLE [dbo].[CUSTOMER_D](
+	[CUSTOMER_D_ID] [int] IDENTITY(1,1) NOT NULL,
+	[CUSTOMER_SRC_ID] [int] NOT NULL,
+	[CUSTOMER_NAME] [nvarchar](100) NOT NULL,
+	[BILL_TO_CUSTOMER_D_ID] [int] NOT NULL,
+	[CUSTOMER_CATEGORY_D_ID] [int] NOT NULL,
+	[BUYING_GROUP_D_ID] [int] NOT NULL,
+	[PRIMARY_CONTACT_PERSON_D_ID] [int] NOT NULL,
+	[PRIMARY_CONTACT_PERSON_CUR_D_ID] [int] NOT NULL,
+	[ALT_CONTACT_PERSON_D_ID] [int] NOT NULL,
+	[ALT_CONTACT_PERSON_CUR_D_ID] [int] NOT NULL,
+	[DELIVERY_METHOD_D_ID] [int] NOT NULL,
+	[DELIVERY_CITY_D_ID] [int] NOT NULL,
+	[POSTAL_CITY_D_ID] [int] NOT NULL,
+	[CREDIT_LIMIT] [decimal](18, 2) NULL,
+	[OPENED_DATE] [date] NOT NULL,
+	[DISCOUNT_PERCENT] [decimal](18, 3) NULL,
+	[IS_STMT_SENT] [bit] NOT NULL,
+	[IS_CREDIT_HOLD] [bit] NOT NULL,
+	[PAYMENT_DAYS] [int] NOT NULL,
+	[PHONE_NUMBER] [nvarchar](20) NOT NULL,
+	[FAX_NUMBER] [nvarchar](20) NOT NULL,
+	[DELIVERY_RUN] [nvarchar](5) NULL,
+	[RUN_POSITION] [nvarchar](5) NULL,
+	[WEBSITE_URL] [nvarchar](256) NOT NULL,
+	[DELIVERY_ADDRESS_LINE_1] [nvarchar](60) NOT NULL,
+	[DELIVERY_ADDRESS_LINE_2] [nvarchar](60) NULL,
+	[DELIVERY_POSTAL_CODE] [nvarchar](10) NOT NULL,
+	[DELIVERY_LOCATION] [geography] NULL,
+	[POSTAL_ADDRESS_LINE_1] [nvarchar](60) NOT NULL,
+	[POSTAL_ADDRESS_LINE_2] [nvarchar](60) NULL,
+	[POSTAL_ADDRESS_CODE] [nchar](10) NULL,
+'''
+refernce to temporal here, the two columns below
+'''
+	[SysStartTime] [datetime2](0) GENERATED ALWAYS AS ROW START NOT NULL,
+	[SysEndTime] [datetime2](0) GENERATED ALWAYS AS ROW END NOT NULL,
+ CONSTRAINT [PK_CUSTOMER_D] PRIMARY KEY CLUSTERED 
+(
+	[CUSTOMER_D_ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+	
+'''
+Creating a Period, defining two columns that make that period
+''
+
+	PERIOD FOR SYSTEM_TIME ([SysStartTime], [SysEndTime])
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+WITH
+'''
+***Note this history table was created by via management studio, looking at path tree and right clicking Schema 
+'''
+(
+SYSTEM_VERSIONING = ON ( HISTORY_TABLE = [History].[CUSTOMER_D] )
+)
+GO
+
+ALTER TABLE [dbo].[CUSTOMER_D] ADD  CONSTRAINT [DF_SysStart_CUSTOMER_D]  DEFAULT (sysutcdatetime()) FOR [SysStartTime]
+GO
+
+ALTER TABLE [dbo].[CUSTOMER_D] ADD  CONSTRAINT [DF_SysEnd_CUSTOMER_D] 
+'''
+refernce to temporal here
+'''
+ DEFAULT (CONVERT([datetime2](0),'9999-12-31 23:59:59')) FOR [SysEndTime]
+GO
+'
+
+11) Now lets model the delivery method table. Same as the few prior. 
+''
+CREATE TABLE [dbo].[DELIVERY_METHOD_D](
+	[DELIVERY_METHOD_D_ID] [int] IDENTITY(1,1) NOT NULL,
+	[METHOD_NAME] [nvarchar](50) NOT NULL,
+	[METHOD_SRC_ID] [int] NOT NULL,
+	[CREATED_DATE] [datetime] NOT NULL,
+	[LAST_UPDATE_DATE] [datetime] NOT NULL,
+ CONSTRAINT [PK_DELIVERY_METHOD_D] PRIMARY KEY CLUSTERED 
+(
+	[DELIVERY_METHOD_D_ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[DELIVERY_METHOD_D] ADD  CONSTRAINT [DF_DELIVERY_METHOD_D_CREATED_DATE]  DEFAULT (getdate()) FOR [CREATED_DATE]
+GO
+
+ALTER TABLE [dbo].[DELIVERY_METHOD_D] ADD  CONSTRAINT [DF_DELIVERY_METHOD_D_LAST_UPDATE_DATE]  DEFAULT (getdate()) FOR [LAST_UPDATE_DATE]
+GO
+''
+12) now the the Person table ( we named person not people to match PK). Note the extra column "Person Unique DID" , we will triger this off a sequence(A sequence is a user defined schema bound object that generates a sequence of numeric values - look more into to see execution) so we can group records together , so we can query both for group of records for all versions of that person or that person in a point of time. We will maintain primary key as well as some other fields. 
+''
+CREATE TABLE [dbo].[PERSON_D](
+	[PERSON_D_ID] [int] IDENTITY(1,1) NOT NULL,
+	[PERSON_UNQ_D_ID] [int] NOT NULL,
+	[PERSON_SRC_ID] [int] NOT NULL,
+	[FULL_NAME] [nvarchar](50) NOT NULL,
+	[PREFERRED_NAME] [nvarchar](50) NOT NULL,
+	[IS_PERMITTED_TO_LOGON] [bit] NOT NULL,
+	[LOGON_NAME] [nvarchar](50) NULL,
+	[IS_EXTERNAL_LOGON_PROVIDER] [bit] NOT NULL,
+	[IS_SYSTEM_USER] [bit] NOT NULL,
+	[IS_EMPLOYEE] [bit] NOT NULL,
+	[IS_SALESPERSON] [bit] NOT NULL,
+	[PHONE_NUMBER] [nvarchar](20) NULL,
+	[FAX_NUMBER] [nvarchar](20) NULL,
+	[EMAIL_ADDRESS] [nvarchar](256) NULL,
+	[CREATED_DATE] [datetime] NOT NULL,
+	[LAST_UPDATE_DATE] [datetime] NOT NULL,
+ CONSTRAINT [PK_PERSON_D] PRIMARY KEY CLUSTERED 
+(
+	[PERSON_D_ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+''
+13)Let's build a runs table, we can use for audit&control. A runID and a name of a run. the Run_Name column can be used for SSIS work so that once can programactially give a name to look through logs to see what run did. We will have date time of the run, a source colum count, the amount of rows: inserted, delted, updating, skipping. Skipping is used in ETL, as sometimes versioning dates may be changed via applicationo so we do a change to see if anything changed. Load Valid column vizually determine load is valid.
+Set contstarints to default as 0 on some columns. As part of this we create a stored procedure. We will use this for SSIS work as well.
+'
+CREATE TABLE [dbo].[RUNS](
+	[RUN_ID] [int] IDENTITY(1,1) NOT NULL,
+	[RUN_NAME] [nvarchar](50) NOT NULL,
+	[RUN_DT] [datetime] NOT NULL,
+	[SOURCE_COLUMNS] [int] NOT NULL,
+	[ROWS_INS] [int] NOT NULL,
+	[ROWS_DEL] [int] NOT NULL,
+	[ROWS_UPD] [int] NOT NULL,
+	[ROWS_SKIP] [int] NOT NULL,
+	[LOAD_VALID]  AS (case when [SOURCE_COLUMNS]=((([ROWS_INS]+[ROWS_DEL])+[ROWS_UPD])+[ROWS_SKIP]) then 'YES' else 'NO' end),
+ CONSTRAINT [PK_RUNS] PRIMARY KEY CLUSTERED 
+(
+	[RUN_ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[RUNS] ADD  CONSTRAINT [DF_RUNS_SOURCE_COLUMNS]  DEFAULT ((0)) FOR [SOURCE_COLUMNS]
+GO
+
+ALTER TABLE [dbo].[RUNS] ADD  CONSTRAINT [DF_RUNS_ROWS_INS]  DEFAULT ((0)) FOR [ROWS_INS]
+GO
+
+ALTER TABLE [dbo].[RUNS] ADD  CONSTRAINT [DF_RUNS_ROWS_DEL]  DEFAULT ((0)) FOR [ROWS_DEL]
+GO
+
+ALTER TABLE [dbo].[RUNS] ADD  CONSTRAINT [DF_RUNS_ROWS_UPD]  DEFAULT ((0)) FOR [ROWS_UPD]
+GO
+
+ALTER TABLE [dbo].[RUNS] ADD  CONSTRAINT [DF_RUNS_ROWS_SKIP]  DEFAULT ((0)) FOR [ROWS_SKIP]
+GO
+
+'
+14)Let's create a stored procdure via passing in a run name and two dates, we are going to look and see what the max run date on history is and we will default to a point in time that is way back-> so there if not a run already done we get a way back date.. so that comes out as a check point. The next theckpoint is the current date/time. 
+
+-When we run loads let's run a Delta load.. let's not run and scan the entire table each etl, lets run where we last left off. This checkpoint is used to determine that point in time, so we know our beginig point in time on our delta.
+'
+CREATE OR ALTER PROCEDURE [dbo].[GET_CHECKPOINTS]
+	@RUN_NAME NVARCHAR(50)
+	, @CHECKPOINT DATETIME OUTPUT
+	, @NEWCHECKPOINT DATETIME OUTPUT
+AS
+BEGIN
+	
+	SET NOCOUNT ON;
+
+	SELECT
+		@CHECKPOINT = a.RUN_DT
+	FROM
+		(
+			SELECT 
+				MAX(b.RUN_DT) RUN_DT
+			FROM
+				(
+					SELECT RUN_DT FROM [dbo].[RUNS] WHERE RUN_NAME = @RUN_NAME
+					UNION
+					SELECT CONVERT([datetime],'1990-01-01 00:00:00') RUN_DT
+				)b
+		) a
+
+	SELECT @NEWCHECKPOINT = GETDATE()
+
+	IF @CHECKPOINT = NULL
+	BEGIN
+		SET @CHECKPOINT = CONVERT([datetime],'1990-01-01 00:00:00')
+	END
+
+    RETURN
+END
+'
+15) Let's add the State Dimension to go along our Cities Dimension. Cities will maintain a reference to State as its a child, so State does not maintain a reference to Cities. 
+'
+CREATE TABLE [dbo].[STATE_D](
+	[STATE_D_ID] [int] IDENTITY(1,1) NOT NULL,
+	[STATE_SRC_ID] [int] NOT NULL,
+	[STATE_CODE] [nvarchar](50) NOT NULL,
+	[STATE_NAME] [nvarchar](50) NOT NULL,
+	[SALES_TERRITORY] [nvarchar](50) NOT NULL,
+	[CREATED_DATE] [datetime] NOT NULL,
+	[LAST_UPDATE_DATE] [datetime] NOT NULL,
+ CONSTRAINT [PK_STATE_D] PRIMARY KEY CLUSTERED 
+(
+	[STATE_D_ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[STATE_D] ADD  CONSTRAINT [DF_STATE_D_CREATED_DATE]  DEFAULT (getdate()) FOR [CREATED_DATE]
+GO
+
+ALTER TABLE [dbo].[STATE_D] ADD  CONSTRAINT [DF_STATE_D_LAST_UPDATE_DATE]  DEFAULT (getdate()) FOR [LAST_UPDATE_DATE]
+GO
+'
+16)Now Let's build a fact table for Orders. They start out like a Dimension. We have a PK for identity and maintain a source PK. It is heavy on linking to other tables. ie link to customers, person 3x(sales, picked, contact) , order date, a few other dates and some boooleans. 
+'
+CREATE TABLE [dbo].[ORDER_F](
+	[ORDER_F_ID] [int] IDENTITY(1,1) NOT NULL,
+	[ORDER_SRC_ID] [int] NOT NULL,
+	[CUSTOMER_D_ID] [int] NOT NULL,
+	[SALES_PERSON_UNQ_D_ID] [int] NOT NULL,
+	[PICKED_PERSON_UNQ_D_ID] [int] NULL,
+	[CONTACT_PERSON_UNQ_D_ID] [int] NOT NULL,
+	[ORDER_DATE] [date] NOT NULL,
+	[EXPECTED_DELIVERY_DATE] [date] NOT NULL,
+	[PONUMBER] [nvarchar](20) NULL,
+	[IS_UNDERSUPPLY_BACKORDER] [bit] NOT NULL,
+	[PICKING_COMPLETED] [datetime2](7) NULL,
+	[CREATED_DATE] [datetime] NOT NULL,
+	[LAST_UPDATE_DATE] [datetime] NOT NULL,
+ CONSTRAINT [PK_ORDER_F] PRIMARY KEY CLUSTERED 
+(
+	[ORDER_F_ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[ORDER_F] ADD  CONSTRAINT [DF_ORDER_F_CREATED_DATE]  DEFAULT (getdate()) FOR [CREATED_DATE]
+GO
+
+ALTER TABLE [dbo].[ORDER_F] ADD  CONSTRAINT [DF_ORDER_F_LAST_UPDATE_DATE]  DEFAULT (getdate()) FOR [LAST_UPDATE_DATE]
+GO
+'
