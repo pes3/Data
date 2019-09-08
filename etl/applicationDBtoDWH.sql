@@ -1,14 +1,14 @@
-'''
-See step by step notes , broken down by GO batches, in the notes_model_appDB_as_DWH.txt file
-'''
+
+---See step by step notes , broken down by GO batches, in the notes_model_appDB_as_DWH.txt file
+
 
 USE [master]
 GO
 
-CREATE DATABASE [demoDB]
+CREATE DATABASE [demoDW]
 GO
 
-USE [demoDB]
+USE [demoDW]
 GO
 
 Create SEQUENCE [dbo].[SQ_Person]
@@ -285,5 +285,4 @@ GO
 
 ALTER TABLE [dbo].[ORDER_F] ADD  CONSTRAINT [DF_ORDER_F_LAST_UPDATE_DATE]  DEFAULT (getdate()) FOR [LAST_UPDATE_DATE]
 GO
-
 
