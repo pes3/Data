@@ -1,0 +1,11 @@
+--- after our load, let's examine the runs table
+SELECT TOP (1000)[RUN_ID]
+ ,[RUN_NAME]
+ ,[RUN_DT]
+ ,[SOURCE_COLUMNS]
+ ,[ROWS_INS]
+ ,[ROWS_DEL]
+ ,[ROWS_UPD]
+ ,[ROWS_SKIP]
+ ,[LOAD_VALID]
+ from demodb.[dbo].[RUNS]

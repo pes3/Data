@@ -178,7 +178,7 @@ BEGIN
 						SELECT
 							ROW_NUMBER() OVER(ORDER BY PERSON_D_ID DESC) AS ROW
 							, PERSON_D_ID
-							, PERSON_UNQ_ID
+							, PERSON_UNQ_D_ID
 						FROM
 							PERSON_D
 						WHERE
@@ -224,6 +224,7 @@ BEGIN
 				SELECT @POSTAL_CITY_D_ID = CITY_D_ID FROM CITY_D WHERE CITY_SRC_ID = @POSTAL_CITY_ID
 
 			END
+
 
 
 			--- now to return to the more familiar load process, seeing if values do or do not exist
