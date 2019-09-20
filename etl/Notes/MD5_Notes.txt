@@ -1,0 +1,14 @@
+Notes on 'faster dimensions' w/ MD5.
+-----
+->The MD5 message-digest algorithm is a widely used hash function producing a 128-bit hash value. 
+-->The MD5 hashing algorithm is a one-way cryptographic function that accepts a message of any length as input and returns as output a fixed-length digest value to be used for authenticating the original message.
+--->An MD5 hash is created by taking a string of an any length and encoding it into a 128-bit fingerprint. Encoding the same string using the MD5 algorithm will always result in the same 128-bit hash output. MD5 hashes are commonly used with smaller strings when storing passwords, credit card numbers or other sensitive data in databases such as the popular MySQL. This tool provides a quick and easy way to encode an MD5 hash from a simple string of up to 256 characters in length.
+---->How to speed up dimesnional loading w/ MD5
+paint point: comparing for updates, doing column to column compare across multiple data types... can cause performance issues.
+
+1)Create MD5 on boths sides of the equation
+2)Assuming we have a staging env. we can do MD5 as apart of the loading stage so we do not have to do anyting at runtime.
+3)If DB supports it you could use a viritual or computed column to compute MD5 and as values change it will re-compute...on the DWH side it gets more difficult. If the dimension table does not have any reference to any other dimension, you can compute the MD5 across all fields when creating the row in the DWH across all fields. 
+3)If the dimesnion links to dimensions , yo cannot create the MD5 simplistically.The reason being, the stage does not know about D_ID, it only knows about text,numbers,dates ect... in the dimension most will be D_ID linking to other dimensions. In that case when you compute the MD5 in the dimension you need to join all other tables to get values you need for comparsion (think lookup when looking up/loading values into dwh.. when doing lookups to supporting dimension) you take all of those values alongside the values embedded in the main row and compute MD5 on that. 
+4) Numbers , dates are efficient in DB's but Strings are resource intensive,, so wrapping this in MD5.. so we compute  the performance hogging comparisons into an efficient comparison, now only one column being compare instead of many. Speed up update check. Implementing can be very beneficial for large scales, a practical solution. 
+5)Implementation - DB platforms have different way of computing MD5 hashing. 

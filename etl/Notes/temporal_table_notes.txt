@@ -1,0 +1,40 @@
+Temporal Table:
+A system-versioned temporal table is a type of user table designed to keep a full history of data changes and allow easy point in time analysis. This type of temporal table is referred to as a system-versioned temporal table because the period of validity for each row is managed by the system (i.e. database engine)
+
+->type of table that keeps pool of history of data changes, enables point in time analysis, 
+-->'system versioned temporal table' - the period in the table is managed by the system. There is two columns that maintain period and a reference to history table. 
+---> How does it work?
+Let's say we have an empty temporal table
+-we want to insert row
+- Start Time column, gets time stamped, End Time gets set to 12:31 in the year 9999. If you perform an update on that row, the existing row gets input into the history table, the end time gets changed to the begining timstamp on the transaction thats being updates. The new row is added to the main table and start time / end time is set like an insert. If you delete the row, the copy into the history table and end time set to time of transaction and in the main table row is just removed.
+-- we have some modifiers for a query to pull data/blend from the history and main teomporal table.  we use "for system time clause":
+1) as of date
+2) from and to date
+3) between operator
+4) contained end
+5) use all to get all versions 
+
+->Creating a new table. Add two date time columns. You need two datetime columns, generated always on row start, generated always on rows end applied to them. (think valid from valid to) at the end of the table create, you need to put a with on it and turn on system versioning and the history table with schema and table name.
+
+-> Existing table, turn system versioning on that table. So run 'alter table' with add' - add 'from'& 'to' timestamp and period. Add contraints for from date (default value- using date add , third parameter you sys datetime function). For the 'to' you set to the max date. You can hide to not impact 3rd party apps if needed. Next run atler table, set system versioning on and specify history table. 
+** above to enable temporal table on existing table**
+
+
+Considerations of existing table:
+
+1) has to have primary key
+2) period columns must use datetime (2)
+3)partioned will not cary to history table
+4) it cannot be a file table
+5) it will allow you but dont use a max length string or blob data
+6)history table has to exist in the same server as the main table, no constrains on history table. 
+7) you cannot run a truncate table on a temporal table
+
+
+
+Why use Temporal tables:
+
+1)easier auditing
+2)easier data forensics
+3)ability to re-create data for any point in time - ie for data backups or mirror/re-create env and do point in time restors
+4)data recovery

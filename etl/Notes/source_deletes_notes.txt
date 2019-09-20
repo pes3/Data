@@ -1,0 +1,14 @@
+Source Deletes
+
+Hard Delete: When row is physically removed from the table.
+Problems -
+a) lost peice of data
+b) pending of frequency, we may have never seen the row... no trace of existence. Bad for fast moving transactional system
+- if in house designed , opt for soft delete
+- if 3rd party database, or legacy , coupled/audited to the point where change would be not good. 
+
+c) CDC = Change data capture, done on seperate application that runs on DB stack, allows us to intercept transactions as being applied to table and do something with them. Gives us the ability to create a new table structure we will source for etl. (for oracle think about their GoldenGate product for Microsoft, cdc work can be done with temporal table / hidden aspects) . You could implement a trigger system, but this could cause problems
+
+-- options above to design around hard deletes
+
+Soft Delete: When a table has an indicator column that a row should be delete, the row is actually deleted it is just marked to be deleted. Easy for etl devs, because it has a marker/trigger. We can see it as an update and handle it. 

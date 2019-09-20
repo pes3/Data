@@ -1,0 +1,11 @@
+Unstructured Data:
+
+Think json files, api calls, xml {it is structured but...)
+
+- with unstructured data, columns & rows will come and go and etl will not know how to handle..
+- volatility...especially with json. 
+- a lot of times with json, rows only persist with values, so instead of nulls they just wont exist 
+- appliction devs change column names and move columns around. You should get notice as an etl dev from front end dev. 
+
+***more thoughts needed to reflect on this point***
+-Application can handle changes quicker but backend cant handle all column changes. When application developer changes column , they should keep the column(dev should persist the value of new and old column and once we are certain old column is to be gone we can go and clean up... depends on relationship with appication dev team....persisitng all columns to the row), and to always include all the columns even if they are null. We cannot handle expecting a column and its there, harder for us to handle columns we were not warned about typically those will be ignored**
