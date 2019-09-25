@@ -51,4 +51,43 @@ on employees.department_id = departments.id
 where name = 'Marketing';*/
 
 
+--- find table related to employees---
+/*SELECT * FROM INFORMATION_SCHEMA.TABLES 
+WHERE TABLE_NAME LIKE 'empl%'*/
+---nested query & joins---
+/*select e.first_name, e.last_name, d.name
+from
+(select *
+from employees 
+where state = 'FL') as e
+inner join departments as d
+on e.department_id = d.id;
+--- right outer join returns unmatched emplyee records (shows null in emloyee column) and shows the department name ---
+select e.first_name, e.last_name, d.name
+from
+(select *
+from employees 
+where state = 'FL') as e
+right outer join departments as d
+on e.department_id = d.id;
+--- left outer join, shows all emlpoyees that match with departments as well as employees who are not assigned a department so department name shows null here---
+select e.first_name, e.last_name, d.name
+from
+(select *
+from employees 
+where state = 'FL') as e
+left outer join departments as d
+on e.department_id = d.id;
+
+
+--- full outer join  you see that rows that did not get matched on both tables reflect null values(its like your running left and right join)_---
+select e.first_name, e.last_name, d.name
+from
+(select *
+from employees 
+where state = 'FL') as e
+full outer join departments as d
+on e.department_id = d.id;*/
+
+---
 
