@@ -90,4 +90,33 @@ full outer join departments as d
 on e.department_id = d.id;*/
 
 ---
+---create new row, if you do not defineand line up the column names, then it just populates left to right--
+
+/*insert into employees(id, first_name, last_name, state, department_id, job_title, base_salary)
+values (394, 'Pete', 'Kline', 'GA', 1, 'Technician', 1800) */
+
+/*insert into employees(id, first_name, last_name, state, department_id, job_title, base_salary)
+values (394, 'Pete', 'Kline', 'GA', 1, 'Technician', 1800)
+
+select * 
+from employees 
+where id  = 394*/
+
+
+--- here we do not define column names because our we input enough values and in the right oorder
+
+/*insert into employees
+values(395, 'Pete', 'Kine', null, 'GA', null, null, null, null, 1, 'Technician', 1800, 0);*/
+
+/*select * 
+from employees
+where id = 395*/
+
+---  you need to specify record to aply update to!!!!------
+/*update employees 
+set address = '2826  Clemence St,, Atlanta', 
+    zip_code = 30303,
+    phone = '404-550-1015'
+where id = 394;*/
+
 
