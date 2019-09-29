@@ -88,7 +88,11 @@ from employees
 where state = 'FL') as e
 full outer join departments as d
 on e.department_id = d.id;*/
-
+--- join with where condition --
+/*SELECT a.title
+from movies as a
+join Boxoffice as b on a.id = b.Movie_id
+where Domestic_sales < International_sales*/
 ---
 ---create new row, if you do not defineand line up the column names, then it just populates left to right--
 
@@ -120,3 +124,25 @@ set address = '2826  Clemence St,, Atlanta',
 where id = 394;*/
 
 
+--- good example of nested where clause ---
+/*select city 
+from North_american_cities 
+where longitude < (Select longitude from North_american_cities
+where city = 'Chicago')
+Order by Longitude desc*/
+
+--- use of offset --
+
+/*
+select city 
+from North_american_cities 
+where country = 'Mexico'
+Order by population asc
+limit 2 offset 1
+*/
+/*
+select city, population
+from North_american_cities 
+where country ='United States'
+Order by population desc
+limit 2 offset 2*/
